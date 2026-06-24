@@ -1,0 +1,1 @@
+Each chunk should remember its source file, page number when available, and chunk number. Classification tasks often use accuracy, precision, recall, F1 score, and ROC-AUC. Regression tasks often use mean absolute error, mean squared error, and R-squared.

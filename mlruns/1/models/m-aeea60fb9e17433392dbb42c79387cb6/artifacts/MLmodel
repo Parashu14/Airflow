@@ -1,0 +1,29 @@
+artifact_path: /media/parashu/One Touch/Airflow/Ai learning/mlruns/1/models/m-aeea60fb9e17433392dbb42c79387cb6/artifacts
+flavors:
+  python_function:
+    artifacts:
+      index:
+        path: artifacts/rag_index.json
+        uri: data/index/rag_index.json
+    cloudpickle_version: 3.1.2
+    code: null
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.pyfunc.model
+    python_model: python_model.pkl
+    python_version: 3.12.13
+    streamable: false
+is_signature_from_type_hint: true
+mlflow_version: 3.14.0
+model_id: m-aeea60fb9e17433392dbb42c79387cb6
+model_size_bytes: 42455
+model_uuid: m-aeea60fb9e17433392dbb42c79387cb6
+prompts: null
+run_id: d889605d2fc341639ab876a3eaffa3d3
+signature:
+  inputs: '[{"type": "any", "required": true}]'
+  outputs: '[{"type": "any", "required": true}]'
+  params: null
+type_hint_from_example: false
+utc_time_created: '2026-06-24 11:54:24.171606'

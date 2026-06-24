@@ -10,6 +10,19 @@ from rag_learning.schema import RagAnswer, SearchResult
 
 QUESTION_TERMS = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_-]*")
 SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
+STOP_WORDS = frozenset({
+    "what", "is", "the", "and", "are", "how", "why", "where", "when",
+    "who", "which", "does", "do", "did", "can", "will", "would", "could",
+    "should", "has", "have", "had", "been", "its", "was", "were", "may",
+    "might", "shall", "need", "dare", "ought", "used", "use", "this",
+    "that", "these", "those", "with", "without", "for", "of", "in", "on",
+    "to", "from", "by", "at", "about", "into", "through", "during",
+    "before", "after", "above", "below", "between", "such", "each",
+    "every", "both", "all", "some", "any", "no", "not", "only", "own",
+    "same", "so", "than", "too", "very", "just", "because", "as", "also",
+    "if", "then", "else", "over", "under", "get", "got", "let", "put",
+    "set", "does", "done", "make", "made", "take", "took",
+})
 
 
 def answer_question(
@@ -109,6 +122,17 @@ def _answer_with_ollama(question: str, results: list[SearchResult]) -> str:
     return str(content).strip()
 
 
+MIN_TERM_COVERAGE = 0.3
+
+
+def _significant_terms(text: str) -> set[str]:
+    return {
+        t.lower()
+        for t in QUESTION_TERMS.findall(text)
+        if len(t) > 2 and t.lower() not in STOP_WORDS
+    }
+
+
 def _answer_extractively(question: str, results: list[SearchResult]) -> str:
     """Simple local answerer used when no LLM is configured.
 
@@ -117,11 +141,23 @@ def _answer_extractively(question: str, results: list[SearchResult]) -> str:
     you can see exactly how retrieval affects the final answer.
     """
 
-    question_terms = {
-        term.lower()
-        for term in QUESTION_TERMS.findall(question)
-        if len(term) > 2
-    }
+    question_terms = _significant_terms(question)
+
+    if not question_terms:
+        return "I do not know from the provided context."
+
+    all_chunk_terms: set[str] = set()
+    for result in results:
+        all_chunk_terms.update(_significant_terms(result.chunk.text))
+
+    matched = len(question_terms & all_chunk_terms)
+    coverage = matched / len(question_terms)
+    if coverage < MIN_TERM_COVERAGE:
+        return (
+            "I do not know from the provided context. "
+            f"(Only {matched}/{len(question_terms)} question terms appear in the retrieved content.)"
+        )
+
     scored_sentences: list[tuple[float, str]] = []
 
     for result in results:
@@ -129,11 +165,7 @@ def _answer_extractively(question: str, results: list[SearchResult]) -> str:
             sentence = sentence.strip()
             if not sentence:
                 continue
-            sentence_terms = {
-                term.lower()
-                for term in QUESTION_TERMS.findall(sentence)
-                if len(term) > 2
-            }
+            sentence_terms = _significant_terms(sentence)
             overlap = len(question_terms & sentence_terms)
             if overlap > 0:
                 scored_sentences.append((overlap + result.score, sentence))

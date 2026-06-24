@@ -8,6 +8,9 @@ from rag_learning.pipeline import DEFAULT_INDEX_PATH, DEFAULT_SOURCE_DIR, ask, b
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Learn RAG by running a small pipeline.")
+    parser.add_argument("--mlflow-tracking-uri", default=None, help="MLflow tracking URI")
+    parser.add_argument("--experiment-name", default="rag_pipeline", help="MLflow experiment name")
+
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     ingest_parser = subparsers.add_parser("ingest", help="Build a vector index.")
@@ -32,12 +35,18 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    mlflow_config = {
+        "mlflow_tracking_uri": args.mlflow_tracking_uri,
+        "experiment_name": args.experiment_name,
+    }
+
     if args.command == "ingest":
         document_count, chunk_count = build_index(
             source_dir=Path(args.source),
             index_path=Path(args.index),
             chunk_size=args.chunk_size,
             chunk_overlap=args.chunk_overlap,
+            **mlflow_config,
         )
         print(f"Indexed {document_count} document parts into {chunk_count} chunks.")
         print(f"Index saved to {args.index}")
@@ -49,6 +58,7 @@ def main() -> None:
             index_path=Path(args.index),
             top_k=args.top_k,
             llm=args.llm,
+            **mlflow_config,
         )
         _print_answer(answer.answer, answer.sources, answer.used_llm)
         if args.show_context:
@@ -56,9 +66,9 @@ def main() -> None:
         return
 
     if args.command == "demo":
-        document_count, chunk_count = build_index()
+        document_count, chunk_count = build_index(**mlflow_config)
         print(f"Demo index built from {document_count} document parts and {chunk_count} chunks.")
-        answer = ask(args.question, llm=args.llm)
+        answer = ask(args.question, llm=args.llm, **mlflow_config)
         _print_answer(answer.answer, answer.sources, answer.used_llm)
         return
 

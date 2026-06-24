@@ -379,18 +379,155 @@ It allows commands like:
 python -m rag_learning.cli demo
 ```
 
+## `tracking.py`
+
+A thin optional wrapper around MLflow.
+
+Why this module:
+
+Tracking index builds and queries helps you compare experiments. Every function is a no-op when MLflow is not installed, so the pipeline runs without it.
+
+### `enabled()`
+
+Checks whether MLflow is available.
+
+### `start_run(run_name, experiment_name, tags, nested)`
+
+Wraps `mlflow.start_run()`. Starts a new run or a nested child run.
+
+### `log_params(params)`
+
+Logs key-value parameters (chunk size, overlap, etc.).
+
+### `log_metrics(metrics)`
+
+Logs numeric metrics (document count, duration, scores).
+
+### `log_artifact(path)`
+
+Logs a file as an artifact.
+
+### `log_text(text, artifact_path)`
+
+Logs a string as a text artifact.
+
+### `end_run(status)`
+
+Ends the active MLflow run.
+
+### `set_tracking_uri(uri)`
+
+Sets the MLflow tracking server URI.
+
+## `mlflow_model.py`
+
+Wraps the RAG pipeline as an MLflow pyfunc model for serving and deployment.
+
+Why this module:
+
+Packaging the pipeline as a model allows deployment via `mlflow models serve` and integration with MLflow's model registry.
+
+### `RagPipelineModel`
+
+An MLflow `PythonModel` that loads the vector store on startup and serves predictions.
+
+- `__init__(index_path, llm)` — stores the index location
+- `load_context(context)` — pre-loads the vector store into memory
+- `predict(context, model_input)` — accepts a list of questions, returns answers with sources
+
+### `log_rag_pipeline(index_path, llm, artifact_path)`
+
+Logs the `RagPipelineModel` to the current MLflow run. Called automatically by `build_index()` when MLflow is enabled.
+
+## `api.py`
+
+A FastAPI server that exposes the pipeline as REST endpoints.
+
+Why this module:
+
+A REST API decouples the pipeline logic from any specific frontend. It also provides Swagger documentation at `/docs`.
+
+### Endpoints
+
+- `GET /health` — health check
+- `GET /api/status` — returns index status, document and chunk counts, and available source files
+- `POST /api/ask` — accepts `AskRequest`, returns `AskResponse` with answer, sources, and per-chunk scores
+- `POST /api/ingest` — accepts `IngestRequest`, rebuilds the index, returns document/chunk count and duration
+
+Why these endpoints:
+
+The ask-and-ingest pattern matches the two pipeline workflows. The status endpoint helps frontends display pipeline state.
+
+## `gradio_app.py`
+
+A Gradio chat UI that calls the FastAPI backend.
+
+Why this module:
+
+A visual interface makes it easier to iterate and test. The three-tab layout separates chatting from configuration and monitoring.
+
+### Tabs
+
+- **Chat** — conversation history, question input, top-k slider, generator selector, context toggle
+- **Index Management** — source directory, chunk size/overlap sliders, rebuild button
+- **Status** — pipeline configuration table and list of available source files
+
+Why three tabs:
+
+Chat is the primary user interaction. Index Management controls data ingestion. Status helps with debugging and understanding the current state.
+
+## `serve.py`
+
+Unified launcher that starts both the FastAPI and Gradio servers.
+
+Why this module:
+
+Running two servers should be a single command for development. The script supports `--api-only`, `--gradio-only`, and custom host/port flags.
+
+### `main()`
+
+Parses CLI arguments and starts the servers:
+
+- `--api-host` / `--api-port` (default: 127.0.0.1:8000)
+- `--gradio-host` / `--gradio-port` (default: 127.0.0.1:7860)
+- `--api-only` / `--gradio-only`
+
+## `web_schemas.py`
+
+Pydantic models for FastAPI request and response serialization.
+
+Why this module:
+
+Pydantic models provide validation, automatic OpenAPI schema generation, and clear documentation for API consumers.
+
+### Models
+
+- `AskRequest` — question, top_k, llm
+- `AskResponse` — answer, sources, used_llm, results list
+- `SearchResultItem` — chunk_id, text, score, source
+- `IngestRequest` — source_dir, index_path, chunk_size, chunk_overlap
+- `IngestResponse` — document_count, chunk_count, duration_seconds, index_path
+- `StatusResponse` — index_exists, index_path, source_dir, document_count, chunk_count, last_modified, source_files
+
 ## How To Read The Code
 
-Start in this order:
+Start with the core pipeline flow:
 
-1. `cli.py`
-2. `pipeline.py`
-3. `document_loader.py`
-4. `chunking.py`
-5. `embeddings.py`
-6. `vector_store.py`
-7. `llm.py`
-8. `schema.py`
+1. `cli.py` — entry point
+2. `pipeline.py` — orchestrates everything
+3. `document_loader.py` — file ingestion
+4. `chunking.py` — text splitting
+5. `embeddings.py` — vector creation
+6. `vector_store.py` — storage and search
+7. `llm.py` — answer generation
+8. `schema.py` — shared data types
 
-That order follows the real user flow.
+Then explore the optional extras:
+
+9. `tracking.py` — experiment tracking
+10. `mlflow_model.py` — model packaging
+11. `api.py` — REST API
+12. `web_schemas.py` — API data models
+13. `gradio_app.py` — web UI
+14. `serve.py` — combined launcher
 

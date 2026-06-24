@@ -1,2 +1,8 @@
 pypdf>=5.0.0
 
+# Optional: mlflow>=2.0.0  (uncomment for experiment tracking)
+# pip install mlflow
+
+# Web UI (uncomment to use the FastAPI + Gradio frontend)
+# pip install fastapi uvicorn gradio httpx
+
