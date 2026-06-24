@@ -14,15 +14,15 @@ def _build_curl() -> httpx.AsyncClient:
 
 async def ask_question(
     question: str,
-    history: list[list[str | None]],
+    history: list[dict],
     top_k: int,
     llm: str,
     show_context: bool,
-) -> tuple[list[list[str | None]], str | None]:
+) -> tuple[list[dict], str | None]:
     if not question.strip():
         return history, None
 
-    history.append([question, None])
+    history.append({"role": "user", "content": question})
 
     try:
         async with _build_curl() as client:
@@ -34,10 +34,10 @@ async def ask_question(
             data = resp.json()
     except httpx.HTTPStatusError as exc:
         detail = exc.response.json().get("detail", str(exc))
-        history[-1][1] = f"Error: {detail}"
+        history.append({"role": "assistant", "content": f"Error: {detail}"})
         return history, ""
     except httpx.RequestError as exc:
-        history[-1][1] = f"Cannot reach API at {API_BASE}: {exc}"
+        history.append({"role": "assistant", "content": f"Cannot reach API at {API_BASE}: {exc}"})
         return history, ""
 
     answer = data["answer"]
@@ -49,7 +49,7 @@ async def ask_question(
             lines.append(f"\n[score={r['score']}] {r['source']}")
             lines.append(r["text"][:300])
 
-    history[-1][1] = "\n".join(lines)
+    history.append({"role": "assistant", "content": "\n".join(lines)})
     return history, ""
 
 
